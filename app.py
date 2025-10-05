@@ -14,6 +14,37 @@ st.set_page_config(
 # Note: Streamlit's default theme (light/dark) is controlled by the user's local settings.
 # To enforce a specific look, we'll use a clean layout and control chart colors.
 
+# --- Custom Altair Theme (Avoids Black Text) ---
+# Define a custom theme to adjust text color for better readability/aesthetic
+@st.cache_resource
+def get_custom_altair_theme():
+    """Returns a custom Altair theme configuration."""
+    return {
+        "config": {
+            "title": {
+                "color": "#a0a0a0",  # Light gray color for titles (instead of black)
+                "fontSize": 16,
+            },
+            "axis": {
+                "titleColor": "#a0a0a0",
+                "labelColor": "#a0a0a0",
+                "gridColor": "#333333", # Darker gray for grids
+            },
+            "header": {
+                "titleColor": "#a0a0a0",
+                "labelColor": "#a0a0a0",
+            },
+            "legend": {
+                "titleColor": "#a0a0a0",
+                "labelColor": "#a0a0a0",
+            }
+        }
+    }
+
+# Register and enable the custom theme
+alt.themes.register("custom_no_black", get_custom_altair_theme)
+alt.themes.enable("custom_no_black")
+
 # --- VADER Setup ---
 
 # Download VADER lexicon once
