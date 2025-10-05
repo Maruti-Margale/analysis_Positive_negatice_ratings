@@ -7,3 +7,9 @@ kagglehub
 streamlit
 nltk
 transformers
+streamlit
+nltk
+transformers
+torch
+torchaudio
+torchdata
