@@ -11,6 +11,8 @@ st.set_page_config(
     layout="wide", # Use wide layout for better data visualization
     initial_sidebar_state="collapsed",
 )
+# Note: Streamlit's default theme (light/dark) is controlled by the user's local settings.
+# To enforce a specific look, we'll use a clean layout and control chart colors.
 
 # --- VADER Setup ---
 
@@ -173,11 +175,15 @@ with tab2:
                         
                         st.markdown(f"#### Average VADER Compound Score by {rating_column}")
                         
-                        # Create the bar chart using Altair
+                        # --- MODIFICATION: Updated Altair color range for better contrast ---
                         chart = alt.Chart(chart_data).mark_bar().encode(
                             x=alt.X('Rating:O', axis=alt.Axis(title=f'Original Rating ({rating_column})')),
                             y=alt.Y('Average Compound Score:Q'),
-                            color=alt.Color('Average Compound Score:Q', scale=alt.Scale(range=['red', 'yellow', 'green'])),
+                            # Using a color scale that transitions clearly from negative (red) to positive (green)
+                            color=alt.Color(
+                                'Average Compound Score:Q', 
+                                scale=alt.Scale(domain=[-1, 0, 1], range=['#ef4444', '#f59e0b', '#10b981']), # Red, Amber, Emerald Green
+                            ),
                             tooltip=['Rating', alt.Tooltip('Average Compound Score', format='.3f')]
                         ).properties(
                             height=400
