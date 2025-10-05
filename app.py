@@ -1,9 +1,20 @@
 import streamlit as st
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
-from transformers import pipeline
 
 # --- Configuration and Caching ---
+
+# Use a try-except block for the transformers import to provide a clean error message
+# if the library is missing, rather than crashing the entire app.
+try:
+    from transformers import pipeline
+    HF_AVAILABLE = True
+except ImportError:
+    HF_AVAILABLE = False
+    # Define a placeholder function to prevent crash if pipeline is not imported
+    def pipeline(*args, **kwargs):
+        return None
+
 
 # 1. Cache the NLTK data downloads and model initializations.
 # This ensures NLTK setup and model loading only happens once, improving app performance.
@@ -24,11 +35,13 @@ def load_nltk_data():
 @st.cache_resource
 def load_hf_pipeline():
     """Load the Hugging Face sentiment analysis pipeline."""
+    if not HF_AVAILABLE:
+        return None
     try:
         # Load the default sentiment-analysis model (usually 'distilbert-base-uncased-finetuned-sst-2-english')
         return pipeline("sentiment-analysis")
     except Exception as e:
-        st.error(f"Error loading Hugging Face model. Do you have the 'transformers' library installed? {e}")
+        st.error(f"Error loading Hugging Face model. {e}")
         return None
 
 # Load resources
@@ -91,28 +104,35 @@ if st.button("Analyze Sentiment", type="primary") and user_input:
     # 2. Hugging Face Transformers Analysis (Model-Based)
     with st.container():
         st.markdown("### 2. Hugging Face Transformers Model")
-        st.info("A pre-trained deep learning model provides a **Label** (POSITIVE/NEGATIVE) and a **Confidence Score**.")
 
-        hf_result = analyze_hf(user_input, hf_analyzer)
-
-        if isinstance(hf_result, dict):
-            label = hf_result.get('label', 'N/A')
-            score = hf_result.get('score', 0.0)
-
-            # Determine color based on sentiment label
-            color = "green" if label == "POSITIVE" else "red" if label == "NEGATIVE" else "gray"
-
-            st.markdown(
-                f"""
-                <div style='background-color: #f0f2f6; padding: 15px; border-radius: 10px; border-left: 5px solid {color};'>
-                    <h4 style='margin-top:0;'>Predicted Sentiment: <span style='color: {color};'>{label}</span></h4>
-                    <p style='margin-bottom:0;'>Confidence Score: <strong>{score:.4f}</strong></p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        if not HF_AVAILABLE:
+            st.warning("The **Hugging Face Transformers Model** section is disabled because the `transformers` library is not installed. Please install it using: `pip install transformers`")
+        elif hf_analyzer is None:
+            st.error("Hugging Face model failed to load. Please check your dependencies.")
         else:
-            st.error("Hugging Face model failed to load.")
+            st.info("A pre-trained deep learning model provides a **Label** (POSITIVE/NEGATIVE) and a **Confidence Score**.")
+
+            hf_result = analyze_hf(user_input, hf_analyzer)
+
+            if isinstance(hf_result, dict):
+                label = hf_result.get('label', 'N/A')
+                score = hf_result.get('score', 0.0)
+
+                # Determine color based on sentiment label
+                color = "green" if label == "POSITIVE" else "red" if label == "NEGATIVE" else "gray"
+
+                st.markdown(
+                    f"""
+                    <div style='background-color: #f0f2f6; padding: 15px; border-radius: 10px; border-left: 5px solid {color};'>
+                        <h4 style='margin-top:0;'>Predicted Sentiment: <span style='color: {color};'>{label}</span></h4>
+                        <p style='margin-bottom:0;'>Confidence Score: <strong>{score:.4f}</strong></p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+            else:
+                st.error("Hugging Face model failed to process the request.")
+
 
 st.markdown(
     """
