@@ -2,6 +2,7 @@
 
 demo link : https://analysispositivenegaticeratings-maruti.streamlit.app/
 
+```mermaid
 graph TD
     A[Start Application: app.py] --> B(Initialize: Load NLTK VADER Lexicon);
     B --> C(Initialize: Load Hugging Face Pipeline @st.cache_resource);
@@ -38,3 +39,4 @@ graph TD
     end
 
     J1 & O3 --> P[End/Wait for Next User Interaction];
+```
