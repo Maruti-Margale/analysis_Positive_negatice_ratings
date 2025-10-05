@@ -4,39 +4,46 @@ demo link : https://analysispositivenegaticeratings-maruti.streamlit.app/
 
 ```mermaid
 graph TD
-    A[Start Application: app.py] --> B(Initialize: Load NLTK VADER Lexicon);
-    B --> C(Initialize: Load Hugging Face Pipeline @st.cache_resource);
+    Start[Start Application: app.py] --> InitVADER[Initialize: Load NLTK VADER Lexicon]
+    InitVADER --> InitHF[Initialize: Load Hugging Face Pipeline]
 
-    subgraph User Interface
-        D1(Display Title, Tabs, and Input Areas);
-        C --> D1;
-        D1 --> E{User Selects Tab};
+    subgraph User_Interface
+        UI[Display Title, Tabs, and Input Areas]
+        InitHF --> UI
+        UI --> SelectTab{User Selects Tab}
     end
 
-    subgraph Tab 1: Single Text Analysis
-        E -- Single Text --> F[Text Input: Paste or Type Review];
-        F --> G1{Perform VADER Analysis};
-        G1 --> H1[Display VADER Scores and Compound Score];
-        F --> G2{Hugging Face Pipeline Ready?};
-        G2 -- Yes --> H2[Perform HF Analysis (Label + Score)];
-        G2 -- No --> I2[Display HF Error/Warning];
-        H1 & H2 --> J1[Display Single Review Results];
+    subgraph Single_Text_Analysis
+        SelectTab -- Single Text --> InputText[Text Input: Paste or Type Review]
+        InputText --> VADER[Perform VADER Analysis]
+        VADER --> DisplayVADER[Display VADER Scores and Compound Score]
+
+        InputText --> HFReady{Hugging Face Pipeline Ready?}
+        HFReady -- Yes --> HFAnalysis["Perform HF Analysis - Label and Score"]
+        HFReady -- No --> HFError[Display HF Error or Warning]
+
+        DisplayVADER --> ShowResult[Display Single Review Results]
+        HFAnalysis --> ShowResult
     end
 
-    subgraph Tab 2: Dataset Batch Analysis
-        E -- Dataset Batch --> F2[File Uploader: Upload CSV];
-        F2 --> G3{File Uploaded?};
-        G3 -- Yes --> H3[Display DataFrame Head];
-        H3 --> I3[User Selects Text Column and Rating Column];
-        I3 --> J3{Review Column Selected?};
-        J3 -- Yes --> K3(Apply VADER to all rows @st.cache_data);
-        K3 --> L3{Rating Column Selected?};
-        L3 -- Yes --> M3[Group Data: Calculate Avg. Compound Score per Rating];
-        L3 -- No --> I4[Display Warning: Select Rating Column];
-        M3 --> N3[Generate and Display Altair Bar Chart];
-        K3 & N3 --> O3[Display Batch Analysis Results Sample];
-        J3 -- No --> I5[Display Warning: Select Text Column];
+    subgraph Dataset_Batch_Analysis
+        SelectTab -- Dataset Batch --> UploadCSV[File Uploader: Upload CSV]
+        UploadCSV --> FileUploaded{File Uploaded?}
+        FileUploaded -- Yes --> ShowHead[Display DataFrame Head]
+
+        ShowHead --> SelectColumns[User Selects Text Column and Rating Column]
+        SelectColumns --> ReviewCol{Review Column Selected?}
+        ReviewCol -- Yes --> ApplyVADER[Apply VADER to all rows]
+        ApplyVADER --> RatingCol{Rating Column Selected?}
+        RatingCol -- Yes --> GroupData[Group Data - Calculate Avg. Compound Score per Rating]
+        RatingCol -- No --> RatingWarn[Display Warning: Select Rating Column]
+        GroupData --> Chart[Generate and Display Altair Bar Chart]
+
+        ApplyVADER --> BatchResult[Display Batch Analysis Results Sample]
+        Chart --> BatchResult
+        ReviewCol -- No --> TextWarn[Display Warning: Select Text Column]
     end
 
-    J1 & O3 --> P[End/Wait for Next User Interaction];
+    ShowResult --> End[End / Wait for Next User Interaction]
+    BatchResult --> End
 ```
