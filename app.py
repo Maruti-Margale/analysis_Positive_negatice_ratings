@@ -1,150 +1,113 @@
 import streamlit as st
 import nltk
-from nltk.sentiment import SentimentIntensityAnalyzer
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import pandas as pd # Used only for display purposes in VADER results
 
-# --- Configuration and Caching ---
+# --- App Configuration ---
+st.set_page_config(
+    page_title="Dual Sentiment Analyzer",
+    layout="centered",
+    initial_sidebar_state="collapsed",
+)
 
-# Use a try-except block for the transformers import to provide a clean error message
-# if the library is missing, rather than crashing the entire app.
+# --- VADER Setup ---
+
+# Download VADER lexicon once
 try:
-    from transformers import pipeline
-    HF_AVAILABLE = True
-except ImportError:
-    HF_AVAILABLE = False
-    # Define a placeholder function to prevent crash if pipeline is not imported
-    def pipeline(*args, **kwargs):
-        return None
+    nltk.data.find('sentiment/vader_lexicon.zip')
+except nltk.downloader.DownloadError:
+    nltk.download('vader_lexicon')
 
+sia = SentimentIntensityAnalyzer()
 
-# 1. Cache the NLTK data downloads and model initializations.
-# This ensures NLTK setup and model loading only happens once, improving app performance.
-@st.cache_resource
-def load_nltk_data():
-    """Download necessary NLTK data."""
-    try:
-        # Only VADER is strictly necessary for this app, but including others for robustness
-        nltk.download('vader_lexicon', quiet=True)
-        # Assuming user might want to expand to POS tagging later
-        # nltk.download('punkt', quiet=True)
-        # nltk.download('averaged_perceptron_tagger', quiet=True)
-        return SentimentIntensityAnalyzer()
-    except Exception as e:
-        st.error(f"Error loading NLTK data: {e}")
-        return None
+# --- Hugging Face Setup ---
 
+# Use st.cache_resource to load the potentially heavy model only once
 @st.cache_resource
 def load_hf_pipeline():
-    """Load the Hugging Face sentiment analysis pipeline."""
-    if not HF_AVAILABLE:
-        return None
+    """Loads the Hugging Face sentiment analysis pipeline."""
     try:
-        # Load the default sentiment-analysis model (usually 'distilbert-base-uncased-finetuned-sst-2-english')
-        return pipeline("sentiment-analysis")
+        # We assume dependencies (transformers, torch, etc.) are installed via requirements.txt
+        from transformers import pipeline
+        # Using a standard, fast sentiment analysis model
+        hf_analyzer = pipeline(
+            "sentiment-analysis",
+            model="distilbert-base-uncased-finetuned-sst-2-english",
+            device=-1 # -1 for CPU, 0 for GPU
+        )
+        return hf_analyzer, None
+    except ImportError as e:
+        # Catch specific module import errors
+        if 'transformers' in str(e) or 'torch' in str(e):
+            return None, "ModuleNotFoundError: The 'transformers' or 'torch' library is missing. Please ensure your 'requirements.txt' includes:\nstreamlit, nltk, transformers, torch, torchaudio, torchdata"
+        else:
+            return None, f"An unexpected ImportError occurred: {e}"
     except Exception as e:
-        st.error(f"Error loading Hugging Face model. {e}")
-        return None
+        # Catch other loading errors (e.g., model download failure)
+        return None, f"Error loading Hugging Face model: {e}"
 
-# Load resources
-sia = load_nltk_data()
-hf_analyzer = load_hf_pipeline()
+# Load the pipeline and check for errors
+hf_analyzer, hf_error = load_hf_pipeline()
 
-# --- Analysis Functions ---
 
-def analyze_vader(text, analyzer):
-    """Perform VADER sentiment analysis."""
-    if not analyzer:
-        return "N/A"
-    return analyzer.polarity_scores(text)
-
-def analyze_hf(text, analyzer):
-    """Perform Hugging Face sentiment analysis."""
-    if not analyzer:
-        return "N/A"
-    return analyzer(text)[0]
-
-# --- Streamlit UI ---
-
-st.set_page_config(page_title="Dual Sentiment Analyzer", layout="centered")
+# --- Main App Logic ---
 
 st.title("📝 Dual Sentiment Analyzer")
 st.markdown("Analyze text sentiment using two different models: **VADER** (Lexicon-based) and **Hugging Face Transformers** (Model-based).")
 
-# Text input from user
-user_input = st.text_area(
+# Text Input Area
+input_text = st.text_area(
     "Paste or type the text/review you want to analyze:",
-    "This product is absolutely amazing! I highly recommend it, but the delivery was a bit slow.",
+    value="This product is absolutely amazing! I highly recommend it, but the delivery was a bit slow.",
     height=150
 )
 
-# Button to trigger analysis
-if st.button("Analyze Sentiment", type="primary") and user_input:
-    st.subheader("Analysis Results")
-    st.divider()
+st.header("Analysis Results")
 
-    # 1. VADER Analysis (Lexicon-Based)
-    with st.container():
-        st.markdown("### 1. VADER (Valence Aware Dictionary and sEntiment Reasoner)")
-        st.info("VADER provides scores for **Positive (pos)**, **Negative (neg)**, **Neutral (neu)**, and a **Compound** score for overall intensity.")
-        vader_scores = analyze_vader(user_input, sia)
+if input_text:
+    # --- 1. VADER Analysis ---
+    st.subheader("1. VADER (Valence Aware Dictionary and sEntiment Reasoner)")
+    st.markdown("VADER provides scores for *Positive (pos)*, *Negative (neg)*, *Neutral (neu)*, and a *Compound* score for overall intensity.")
 
-        if isinstance(vader_scores, dict):
-            st.code(f"Scores: {vader_scores}", language="json")
+    vader_scores = sia.polarity_scores(input_text)
+    st.code(f"Scores: {vader_scores}")
 
-            col1, col2, col3, col4 = st.columns(4)
+    # Visualize VADER Compound Score
+    compound_score = vader_scores['compound']
+    st.markdown(f"**Compound Score**")
+    st.metric(label="Overall Sentiment", value=f"{compound_score:.3f}")
 
-            col1.metric("Compound Score", f"{vader_scores['compound']:.3f}", help="Normalized, weighted composite score. Typically > 0.05 is Positive, < -0.05 is Negative.")
-            col2.metric("Positive", f"{vader_scores['pos']:.3f}")
-            col3.metric("Neutral", f"{vader_scores['neu']:.3f}")
-            col4.metric("Negative", f"{vader_scores['neg']:.3f}")
-        else:
-            st.error("VADER model failed to load.")
+    # Display individual scores
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Positive", f"{vader_scores['pos']:.3f}")
+    col2.metric("Neutral", f"{vader_scores['neu']:.3f}")
+    col3.metric("Negative", f"{vader_scores['neg']:.3f}")
 
-    st.divider()
+    st.markdown("---")
 
-    # 2. Hugging Face Transformers Analysis (Model-Based)
-    with st.container():
-        st.markdown("### 2. Hugging Face Transformers Model")
+    # --- 2. Hugging Face Analysis ---
+    st.subheader("2. Hugging Face Transformers Model")
 
-        if not HF_AVAILABLE:
-            st.warning("The **Hugging Face Transformers Model** section is disabled because the `transformers` library is not installed. Please install it using: `pip install transformers`")
-        elif hf_analyzer is None:
-            st.error("Hugging Face model failed to load. Please check your dependencies.")
-        else:
-            st.info("A pre-trained deep learning model provides a **Label** (POSITIVE/NEGATIVE) and a **Confidence Score**.")
+    if hf_analyzer:
+        # Model is loaded, run analysis
+        try:
+            hf_result = hf_analyzer(input_text)[0]
+            label = hf_result['label'].capitalize()
+            score = hf_result['score']
 
-            hf_result = analyze_hf(user_input, hf_analyzer)
+            st.success(f"**Sentiment Label:** {label}")
+            st.metric(label="Confidence Score", value=f"{score:.4f}")
 
-            if isinstance(hf_result, dict):
-                label = hf_result.get('label', 'N/A')
-                score = hf_result.get('score', 0.0)
+            st.info(f"The model predicts the sentiment is **{label}** with {score:.2%} confidence.")
 
-                # Determine color based on sentiment label
-                color = "green" if label == "POSITIVE" else "red" if label == "NEGATIVE" else "gray"
+        except Exception as e:
+            st.error(f"An error occurred during Hugging Face analysis: {e}")
+    else:
+        # Model failed to load
+        st.error("Hugging Face model failed to load.")
+        st.warning(hf_error)
+else:
+    st.info("Please enter text above to begin the sentiment analysis.")
 
-                st.markdown(
-                    f"""
-                    <div style='background-color: #f0f2f6; padding: 15px; border-radius: 10px; border-left: 5px solid {color};'>
-                        <h4 style='margin-top:0;'>Predicted Sentiment: <span style='color: {color};'>{label}</span></h4>
-                        <p style='margin-bottom:0;'>Confidence Score: <strong>{score:.4f}</strong></p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-            else:
-                st.error("Hugging Face model failed to process the request.")
-
-
-st.markdown(
-    """
-    <style>
-    .stButton>button {
-        width: 100%;
-    }
-    .stCode {
-        margin-top: 10px;
-        margin-bottom: 20px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# --- NLTK and Model Notes for deployment clarity ---
+st.caption("Note: NLTK downloads required VADER data on first run if not present. Hugging Face model is loaded once on application startup using st.cache_resource.")
