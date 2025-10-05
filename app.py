@@ -4,25 +4,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import nltk
+import os
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import kagglehub
 
-# Ensure all NLTK resources are available
-nltk_packages = [
-    "punkt", 
-    "averaged_perceptron_tagger", 
-    "maxent_ne_chunker", 
-    "words", 
-    "vader_lexicon"
-]
-
-for pkg in nltk_packages:
-    try:
-        nltk.data.find(
-            f"{'tokenizers' if pkg == 'punkt' else 'taggers' if pkg == 'averaged_perceptron_tagger' else 'chunkers' if pkg == 'maxent_ne_chunker' else 'sentiment' if pkg == 'vader_lexicon' else 'corpora'}/{pkg}"
-        )
-    except LookupError:
-        nltk.download(pkg)
+# Set up custom nltk_data path
+nltk_data_path = os.path.join(os.path.dirname(__file__), "nltk_data")
+nltk.data.path.append(nltk_data_path)
 
 # App title
 st.title("Amazon Food Review Analyzer")
@@ -60,18 +48,30 @@ elif option == "Analyze Your Review":
 
     if user_input:
         st.subheader("1. Tokenization")
-        tokens = nltk.word_tokenize(user_input)
-        st.write(tokens)
+        try:
+            tokens = nltk.word_tokenize(user_input)
+            st.write(tokens)
+        except LookupError as e:
+            st.error(f"Tokenization failed: {e}")
 
         st.subheader("2. Part-of-Speech Tagging")
-        pos_tags = nltk.pos_tag(tokens)
-        st.write(pos_tags)
+        try:
+            pos_tags = nltk.pos_tag(tokens)
+            st.write(pos_tags)
+        except Exception as e:
+            st.error(f"POS tagging failed: {e}")
 
         st.subheader("3. Named Entity Recognition (NER)")
-        ne_tree = nltk.chunk.ne_chunk(pos_tags)
-        st.text(ne_tree.pformat())
+        try:
+            ne_tree = nltk.chunk.ne_chunk(pos_tags)
+            st.text(ne_tree.pformat())
+        except Exception as e:
+            st.error(f"NER failed: {e}")
 
         st.subheader("4. Sentiment Analysis (VADER)")
-        sid = SentimentIntensityAnalyzer()
-        sentiment = sid.polarity_scores(user_input)
-        st.write(sentiment)
+        try:
+            sid = SentimentIntensityAnalyzer()
+            sentiment = sid.polarity_scores(user_input)
+            st.write(sentiment)
+        except Exception as e:
+            st.error(f"Sentiment analysis failed: {e}")
