@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -8,12 +7,22 @@ import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import kagglehub
 
-# Download required nltk resources
-nltk.download('punkt')
-nltk.download('averaged_perceptron_tagger')
-nltk.download('maxent_ne_chunker')
-nltk.download('words')
-nltk.download('vader_lexicon')
+# Ensure all NLTK resources are available
+nltk_packages = [
+    "punkt", 
+    "averaged_perceptron_tagger", 
+    "maxent_ne_chunker", 
+    "words", 
+    "vader_lexicon"
+]
+
+for pkg in nltk_packages:
+    try:
+        nltk.data.find(
+            f"{'tokenizers' if pkg == 'punkt' else 'taggers' if pkg == 'averaged_perceptron_tagger' else 'chunkers' if pkg == 'maxent_ne_chunker' else 'sentiment' if pkg == 'vader_lexicon' else 'corpora'}/{pkg}"
+        )
+    except LookupError:
+        nltk.download(pkg)
 
 # App title
 st.title("Amazon Food Review Analyzer")
